@@ -74,4 +74,9 @@ public class Build extends BaseModel {
 		return result;
 	}
 
+	public RobotReport robotReport() throws IOException {
+		RobotReport result = client.get(JenkinsServer.encode(url + "/robot"), RobotReport.class);
+		result.setClient(client);
+		return result;
+	}
 }

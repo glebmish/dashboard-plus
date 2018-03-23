@@ -10,6 +10,7 @@ import com.baloise.confluence.dashboardplus.jenkins.bean.JenkinsData;
 import com.offbytwo.jenkins.JenkinsServer;
 import com.offbytwo.jenkins.model.Build;
 import com.offbytwo.jenkins.model.JobWithDetails;
+import com.offbytwo.jenkins.model.RobotReport;
 import com.offbytwo.jenkins.model.TestReport;
 
 public class JenkinsService implements IJenkinsService {
@@ -48,6 +49,7 @@ public class JenkinsService implements IJenkinsService {
 				result.setLastCompletedBuildDetails(lastCompletedBuild
 						.details());
 				TestReport testReport;
+				RobotReport robotReport;
 				try {
 					testReport = lastCompletedBuild
 							.testReport(recursiveChildLoading);
@@ -55,6 +57,14 @@ public class JenkinsService implements IJenkinsService {
 					testReport = new TestReport();
 				}
 				result.setLastCompletedBuildTestReport(testReport);
+
+				try {
+					robotReport = lastCompletedBuild
+							.robotReport();
+				} catch (IOException e) {
+					robotReport = new RobotReport();
+				}
+				result.setLastCompletedBuildRobotReport(robotReport);
 			}
 
 		} catch (IOException e) {

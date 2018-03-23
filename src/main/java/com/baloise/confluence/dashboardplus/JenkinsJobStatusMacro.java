@@ -178,10 +178,9 @@ public class JenkinsJobStatusMacro extends StatusLightBasedMacro {
 					.getLastCompletedBuildDetails().getDuration());
 
 			result.setTestPassCount(jenkinsData
-					.getLastCompletedBuildTestReport().getPassCount());
+					.getLastCompletedBuildRobotReport().getOverallPassed());
 			result.setTestTotalCount(jenkinsData
-					.getLastCompletedBuildTestReport().getTotalCount(
-							params.inclSkippedTests));
+					.getLastCompletedBuildRobotReport().getOverallTotal());
 
 			result.setTestDetails(computeTestDetails(
 					jenkinsData.getLastCompletedBuildTestReport(),
