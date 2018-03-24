@@ -20,6 +20,7 @@ import com.baloise.confluence.dashboardplus.exception.ResourceNotFoundException;
 import com.baloise.confluence.dashboardplus.exception.ServiceUnavailableException;
 import com.baloise.confluence.dashboardplus.jenkins.JenkinsService;
 import com.baloise.confluence.dashboardplus.jenkins.bean.JenkinsData;
+import com.offbytwo.jenkins.model.RobotReport;
 import com.offbytwo.jenkins.model.TestReport;
 import com.offbytwo.jenkins.model.TestReportSuite;
 import com.offbytwo.jenkins.model.TestReportSuiteCase;
@@ -41,6 +42,7 @@ public class JenkinsJobStatusMacro extends StatusLightBasedMacro {
 	private static final String MACRO_PARAM_NAME_APPLYOUTLINESTYLE = "applyOutlineStyle";
 	private static final String MACRO_PARAM_NAME_SHOWFAILEDTESTDETAILSASTOOLTIP = "showFailedTestDetailsAsTooltip";
 	private static final String MACRO_PARAM_NAME_FONTSIZE = "fontSize";
+	private static final String MACRO_PARAM_NAME_REPLACEWITHROBOT = "replaceWithRobot";
 
 	private static final String MACRO_PARAM_DEFAULT_HOST = Default
 			.getString("JenkinsJobStatusMacro.host"); //$NON-NLS-1$
@@ -72,6 +74,8 @@ public class JenkinsJobStatusMacro extends StatusLightBasedMacro {
 			.getString("JenkinsJobStatusMacro.showFailedTestDetailsAsTooltip"); //$NON-NLS-1$
 	private static final String MACRO_PARAM_DEFAULT_FONTSIZE = Default
 			.getString("JenkinsJobStatusMacro.fontSize"); //$NON-NLS-1$
+	private static final String MACRO_PARAM_DEFAULT_REPLACEWITHROBOT = Default
+			.getString("JenkinsJobStatusMacro.replaceWithRobot"); //$NON-NLS-1$
 
 	/* Automatically injected spring components */
 	// private final XhtmlContent xhtmlUtils;
@@ -167,26 +171,39 @@ public class JenkinsJobStatusMacro extends StatusLightBasedMacro {
 
 	private StatusLightData evaluateJenkinsData(Params params,
 			JenkinsData jenkinsData) {
+		TestReport testReport;
+		if (params.replaceWithRobot) {
+			testReport = convertRobotReportToTestReport(jenkinsData.getLastCompletedBuildRobotReport());
+		} else {
+			testReport = jenkinsData.getLastCompletedBuildTestReport();
+		}
+
 		StatusLightData result = new StatusLightData();
 		if (jenkinsData.getLastCompletedBuildDetails() == null) {
 			result.setColor(StatusColor.Blue);
 		} else {
-			result.setColor(determineStatusColor(params, jenkinsData));
+			result.setColor(determineStatusColor(params, jenkinsData, testReport));
 			result.setLastRunTimestamp(jenkinsData
 					.getLastCompletedBuildDetails().getTimestamp());
 			result.setLastRunDurationInMillis(jenkinsData
 					.getLastCompletedBuildDetails().getDuration());
 
-			result.setTestPassCount(jenkinsData
-					.getLastCompletedBuildRobotReport().getOverallPassed());
-			result.setTestTotalCount(jenkinsData
-					.getLastCompletedBuildRobotReport().getOverallTotal());
+			result.setTestPassCount(testReport.getPassCount());
+			result.setTestTotalCount(testReport.getTotalCount(params.inclSkippedTests));
 
 			result.setTestDetails(computeTestDetails(
 					jenkinsData.getLastCompletedBuildTestReport(),
 					params.inclSkippedTests));
 		}
 		return result;
+	}
+
+	private TestReport convertRobotReportToTestReport(RobotReport robotReport) {
+		TestReport testReport = new TestReport();
+		testReport.setTotalCount(robotReport.getOverallTotal());
+		testReport.setPassCount(robotReport.getOverallPassed());
+		testReport.setFailCount(robotReport.getOverallFailed());
+		return testReport;
 	}
 
 	private static String computeTestDetails(TestReport testReport,
@@ -321,21 +338,23 @@ public class JenkinsJobStatusMacro extends StatusLightBasedMacro {
 						MACRO_PARAM_DEFAULT_SHOWFAILEDTESTDETAILSASTOOLTIP));
 		params.fontSize = loadDefaultedParamValue(parameters,
 				MACRO_PARAM_NAME_FONTSIZE, MACRO_PARAM_DEFAULT_FONTSIZE);
+		params.replaceWithRobot = Boolean
+				.parseBoolean(loadDefaultedParamValue(parameters,
+						MACRO_PARAM_NAME_REPLACEWITHROBOT,
+						MACRO_PARAM_DEFAULT_REPLACEWITHROBOT));
 
 		return params;
 	}
 
 	private StatusColor determineStatusColor(Params params,
-			JenkinsData jenkinsData) {
+			JenkinsData jenkinsData, TestReport testReport) {
 		long howOld = System.currentTimeMillis()
 				- jenkinsData.getLastCompletedBuildDetails().getTimestamp();
 		if (params.period > 0 && howOld > (params.period * 3600 * 1000)) {
 			return StatusColor.Grey;
 		} else {
 			if (params.doesReflectTest) {
-				double successRatio = jenkinsData
-						.getLastCompletedBuildTestReport().calcSuccessRatio(
-								params.inclSkippedTests);
+				double successRatio = testReport.calcSuccessRatio(params.inclSkippedTests);
 				if (params.simpleThresholdModel) {
 					if (successRatio == 1d) {
 						return StatusColor.Green;
@@ -377,7 +396,7 @@ public class JenkinsJobStatusMacro extends StatusLightBasedMacro {
 		double period;
 		boolean showDetails, doesReflectTest, simpleThresholdModel,
 				inclSkippedTests, applyOutlineStyle,
-				showFailedTestDetailsAsTooltip;
+				showFailedTestDetailsAsTooltip, replaceWithRobot;
 		double threshold1, threshold2;
 	}
 
