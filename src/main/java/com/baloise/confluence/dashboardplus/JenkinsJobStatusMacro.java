@@ -43,6 +43,7 @@ public class JenkinsJobStatusMacro extends StatusLightBasedMacro {
 	private static final String MACRO_PARAM_NAME_SHOWFAILEDTESTDETAILSASTOOLTIP = "showFailedTestDetailsAsTooltip";
 	private static final String MACRO_PARAM_NAME_FONTSIZE = "fontSize";
 	private static final String MACRO_PARAM_NAME_REPLACEWITHROBOT = "replaceWithRobot";
+	private static final String MACRO_PARAM_NAME_ROBOTONLYCRITICAL = "robotOnlyCritical";
 
 	private static final String MACRO_PARAM_DEFAULT_HOST = Default
 			.getString("JenkinsJobStatusMacro.host"); //$NON-NLS-1$
@@ -76,6 +77,8 @@ public class JenkinsJobStatusMacro extends StatusLightBasedMacro {
 			.getString("JenkinsJobStatusMacro.fontSize"); //$NON-NLS-1$
 	private static final String MACRO_PARAM_DEFAULT_REPLACEWITHROBOT = Default
 			.getString("JenkinsJobStatusMacro.replaceWithRobot"); //$NON-NLS-1$
+	private static final String MACRO_PARAM_DEFAULT_ROBOTONLYCRITICAL = Default
+			.getString("JenkinsJobStatusMacro.robotOnlyCritical"); //$NON-NLS-1$
 
 	/* Automatically injected spring components */
 	// private final XhtmlContent xhtmlUtils;
@@ -173,7 +176,8 @@ public class JenkinsJobStatusMacro extends StatusLightBasedMacro {
 			JenkinsData jenkinsData) {
 		TestReport testReport;
 		if (params.replaceWithRobot) {
-			testReport = convertRobotReportToTestReport(jenkinsData.getLastCompletedBuildRobotReport());
+			testReport = convertRobotReportToTestReport(params,
+					jenkinsData.getLastCompletedBuildRobotReport());
 		} else {
 			testReport = jenkinsData.getLastCompletedBuildTestReport();
 		}
@@ -198,11 +202,17 @@ public class JenkinsJobStatusMacro extends StatusLightBasedMacro {
 		return result;
 	}
 
-	private TestReport convertRobotReportToTestReport(RobotReport robotReport) {
+	private TestReport convertRobotReportToTestReport(Params params, RobotReport robotReport) {
 		TestReport testReport = new TestReport();
-		testReport.setTotalCount(robotReport.getOverallTotal());
-		testReport.setPassCount(robotReport.getOverallPassed());
-		testReport.setFailCount(robotReport.getOverallFailed());
+		if (params.robotOnlyCritical) {
+			testReport.setTotalCount(robotReport.getCriticalTotal());
+			testReport.setPassCount(robotReport.getCriticalPassed());
+			testReport.setFailCount(robotReport.getCriticalFailed());
+		} else {
+			testReport.setTotalCount(robotReport.getOverallTotal());
+			testReport.setPassCount(robotReport.getOverallPassed());
+			testReport.setFailCount(robotReport.getOverallFailed());
+		}
 		return testReport;
 	}
 
@@ -342,6 +352,10 @@ public class JenkinsJobStatusMacro extends StatusLightBasedMacro {
 				.parseBoolean(loadDefaultedParamValue(parameters,
 						MACRO_PARAM_NAME_REPLACEWITHROBOT,
 						MACRO_PARAM_DEFAULT_REPLACEWITHROBOT));
+		params.robotOnlyCritical = Boolean
+				.parseBoolean(loadDefaultedParamValue(parameters,
+						MACRO_PARAM_NAME_ROBOTONLYCRITICAL,
+						MACRO_PARAM_DEFAULT_ROBOTONLYCRITICAL));
 
 		return params;
 	}
@@ -396,7 +410,8 @@ public class JenkinsJobStatusMacro extends StatusLightBasedMacro {
 		double period;
 		boolean showDetails, doesReflectTest, simpleThresholdModel,
 				inclSkippedTests, applyOutlineStyle,
-				showFailedTestDetailsAsTooltip, replaceWithRobot;
+				showFailedTestDetailsAsTooltip, replaceWithRobot,
+				robotOnlyCritical;
 		double threshold1, threshold2;
 	}
 
